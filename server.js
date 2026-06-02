@@ -74,7 +74,7 @@ wss.on('connection', (ws) => {
         ytdlpProcess.kill('SIGTERM');
         setTimeout(() => {
           if (ytdlpProcess && !ytdlpProcess.killed) {
-            spawn('taskkill', ['/pid', ytdlpProcess.pid.toString(), '/f', '/t']);
+            try { process.kill(ytdlpProcess.pid, 'SIGKILL'); } catch {}
           }
         }, 2000);
       }
@@ -85,7 +85,7 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     cancelled = true;
     if (ytdlpProcess && !ytdlpProcess.killed) {
-      spawn('taskkill', ['/pid', ytdlpProcess.pid.toString(), '/f', '/t']);
+      try { process.kill(ytdlpProcess.pid, 'SIGKILL'); } catch {}
     }
     cleanupTemp();
   });
@@ -250,7 +250,7 @@ wss.on('connection', (ws) => {
       stderrBuf += chunk.toString();
       const lines = stderrBuf.split('\n');
       stderrBuf = lines.pop();
-      for (const line of lines) processLine(line);
+      for (const line of lines) { try { processLine(line); } catch {} }
     });
 
     // Also listen to stdout (some yt-dlp messages go here)
@@ -259,7 +259,7 @@ wss.on('connection', (ws) => {
       stdoutBuf += chunk.toString();
       const lines = stdoutBuf.split('\n');
       stdoutBuf = lines.pop();
-      for (const line of lines) processLine(line);
+      for (const line of lines) { try { processLine(line); } catch {} }
     });
 
     // Process exit
