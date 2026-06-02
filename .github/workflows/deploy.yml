@@ -68,6 +68,10 @@ jobs:
               echo "PORT=3456" > $APP_DIR/.env
             fi
 
+            # Stop containers first so mount points are released
+            echo "Stopping containers..."
+            docker compose down 2>/dev/null || true
+
             # Write cookies.txt from GitHub Secret
             if [ -n "$COOKIES_BASE64" ]; then
               rm -rf $APP_DIR/cookies.txt
