@@ -33,8 +33,6 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
 // ── Progress Parser ─────────────────────────────────────────────────
-// yt-dlp --progress-template emits one line per update with format:
-// PROGRESS:<percent>|<speed>|<eta>|<downloaded_bytes>|<total_bytes>|<total_est>|<elapsed>
 const PROGRESS_RE = /^PROGRESS:(.*?)\|(.*?)\|(.*?)\|(\d+)\|(\d+)\|(\d+)\|(.*)$/;
 const DEST_RE = /^\[download\] Destination:\s*(.+)$/;
 
@@ -67,7 +65,12 @@ wss.on('connection', (ws) => {
     try { msg = JSON.parse(raw.toString()); } catch { return; }
 
     if (msg.type === 'start') {
-      startDownload(ws, msg);
+      try {
+        startDownload(ws, msg);
+      } catch (e) {
+        console.error('[download] startDownload error:', e.message);
+        ws.send(JSON.stringify({ type: 'error', message: e.message }));
+      }
     } else if (msg.type === 'cancel') {
       cancelled = true;
       if (ytdlpProcess) {
@@ -105,18 +108,23 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    const outputDir = config.outputDir || DEFAULT_OUTPUT;
+    let outputDir = config.outputDir || DEFAULT_OUTPUT;
     const disguise = config.disguise !== false;
     const userAgent = config.userAgent ||
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
     const sleepMin = config.sleepMin || 1;
     const sleepMax = config.sleepMax || 2;
-    const cookiesFromBrowser = config.cookiesFromBrowser || ''; // e.g. 'chrome', 'firefox', 'edge'
+    const cookiesFromBrowser = config.cookiesFromBrowser || '';
     const cookiesFile = config.cookiesFile || '';
 
-    // Ensure output directory exists
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
+    // Ensure output directory exists (fall back to default on error, e.g. Windows path on Linux)
+    try {
+      if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
+    } catch (e) {
+      console.log('[download] Cannot create', outputDir, '-> using default');
+      ws.send(JSON.stringify({ type: 'log', level: 'warn', message: `目录不可用，已切换为默认: ${DEFAULT_OUTPUT}` }));
+      outputDir = DEFAULT_OUTPUT;
+      if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
     }
 
     // Write URLs to temp file (use /tmp on Linux because read_only fs)
@@ -164,13 +172,10 @@ wss.on('connection', (ws) => {
 
     ws.send(JSON.stringify({ type: 'started', totalVideos: urls.length }));
 
-    // Parse output lines — yt-dlp sends progress/errors to stderr, info to stdout
-    // We merge both into a single parser
     function processLine(line) {
       line = line.trim();
       if (!line) return;
 
-      // Detect any ERROR line (extraction, download, or network)
       if (line.startsWith('ERROR:') || line.includes(': error:')) {
         errorCount++;
         fatalError = fatalError || line;
@@ -186,12 +191,11 @@ wss.on('connection', (ws) => {
           total: urls.length,
           message: line,
           url: urls[currentIndex] || urls[0] || '',
-          fatal: !currentIndex, // fatal if happened before any download started
+          fatal: !currentIndex,
         }));
         return;
       }
 
-      // Detect destination (new video starting)
       const destMatch = line.match(DEST_RE);
       if (destMatch) {
         currentFilename = path.basename(destMatch[1]);
@@ -206,7 +210,6 @@ wss.on('connection', (ws) => {
         return;
       }
 
-      // Parse progress
       const prog = parseProgress(line);
       if (prog) {
         ws.send(JSON.stringify({
@@ -218,7 +221,6 @@ wss.on('connection', (ws) => {
         return;
       }
 
-      // Detect completion
       if (line.includes('[download] 100%')) {
         completedCount++;
         results.push({ index: currentIndex, filename: currentFilename, status: 'completed' });
@@ -233,7 +235,6 @@ wss.on('connection', (ws) => {
         return;
       }
 
-      // Warnings (non-fatal)
       if (line.includes('WARNING:')) {
         ws.send(JSON.stringify({
           type: 'log',
@@ -253,7 +254,7 @@ wss.on('connection', (ws) => {
       for (const line of lines) { try { processLine(line); } catch {} }
     });
 
-    // Also listen to stdout (some yt-dlp messages go here)
+    // Also listen to stdout
     let stdoutBuf = '';
     ytdlpProcess.stdout.on('data', (chunk) => {
       stdoutBuf += chunk.toString();
@@ -264,9 +265,8 @@ wss.on('connection', (ws) => {
 
     // Process exit
     ytdlpProcess.on('close', (code) => {
-      // Flush remaining buffers
-      if (stderrBuf.trim()) processLine(stderrBuf);
-      if (stdoutBuf.trim()) processLine(stdoutBuf);
+      if (stderrBuf.trim()) { try { processLine(stderrBuf); } catch {} }
+      if (stdoutBuf.trim()) { try { processLine(stdoutBuf); } catch {} }
       cleanupTemp();
       ytdlpProcess = null;
 
