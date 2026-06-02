@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tiktok-downloader
+    ports:
+      - "${PORT:-3456}:3456"
+    volumes:
+      # 下载文件持久化
+      - tiktok_downloads:/app/downloads
+      # 可选：挂载本地 urls.txt 方便编辑
+      - ./urls.txt:/app/urls.txt:ro
+    environment:
+      - PORT=${PORT:-3456}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp
+
+volumes:
+  tiktok_downloads:

@@ -1,0 +1,13 @@
+{
+  "name": "tiktok-downloader-gui",
+  "version": "1.0.0",
+  "description": "TikTok video downloader with visual web interface",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}

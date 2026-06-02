@@ -1,0 +1,8 @@
+node_modules/
+downloads/
+.env
+*.tmp
+test-*.js
+yt-dlp.exe
+urls.txt
+下载视频.txt

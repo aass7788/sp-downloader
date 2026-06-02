@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TikTok Video Downloader</title>
+<style>
+/* ── Theme Variables ──────────────────────────────────────────── */
+:root {
+  --bg: #f8f9fa; --bg-card: #ffffff; --bg-input: #f1f3f5;
+  --text: #1a1a2e; --text-dim: #6c757d; --text-muted: #adb5bd;
+  --border: #e9ecef; --border-focus: #fe2c55;
+  --accent: #fe2c55; --accent-hover: #e8254a; --accent-dim: rgba(254,44,85,.12);
+  --success: #00c853; --success-dim: rgba(0,200,83,.12);
+  --danger: #ff5252; --danger-dim: rgba(255,82,82,.12);
+  --warning: #ffa726; --warning-dim: rgba(255,167,38,.12);
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06); --shadow: 0 2px 8px rgba(0,0,0,.08);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.12); --radius: 12px; --radius-sm: 8px;
+  --font: -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono: "SF Mono","Cascadia Code","Consolas",monospace;
+  --transition: 200ms ease;
+}
+[data-theme="dark"] {
+  --bg: #0f0f14; --bg-card: #1a1a24; --bg-input: #252536;
+  --text: #e8e8ed; --text-dim: #9ca3af; --text-muted: #6b7280;
+  --border: #2d2d3f; --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+  --shadow: 0 2px 8px rgba(0,0,0,.4); --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+}
+/* ── Reset ────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;
+  min-height:100vh;transition:background var(--transition),color var(--transition)}
+/* ── Layout ───────────────────────────────────────────────────── */
+.app{max-width:960px;margin:0 auto;padding:24px 20px 60px}
+header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px}
+header h1{font-size:22px;font-weight:700;letter-spacing:-.01em}
+header .status{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-dim)}
+header .dot{width:8px;height:8px;border-radius:50%;background:var(--text-muted)}
+header .dot.connected{background:var(--success)}
+/* Theme toggle */
+.theme-btn{width:36px;height:36px;border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--bg-card);cursor:pointer;font-size:16px;display:grid;place-items:center;
+  transition:all var(--transition)}
+.theme-btn:hover{border-color:var(--accent)}
+/* ── Cards ────────────────────────────────────────────────────── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px 24px;margin-bottom:16px;box-shadow:var(--shadow-sm);
+  transition:box-shadow var(--transition),transform var(--transition)}
+.card:hover{box-shadow:var(--shadow)}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.card-header h2{font-size:15px;font-weight:600}
+.card-header .badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:600}
+.badge-count{background:var(--accent-dim);color:var(--accent)}
+.badge-ok{background:var(--success-dim);color:var(--success)}
+.badge-err{background:var(--danger-dim);color:var(--danger)}
+/* ── URL Input ────────────────────────────────────────────────── */
+#url-input{width:100%;min-height:140px;padding:14px 16px;font-family:var(--mono);font-size:13px;
+  line-height:1.7;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--bg-input);color:var(--text);resize:vertical;
+  transition:border-color var(--transition);outline:none}
+#url-input:focus{border-color:var(--accent)}
+#url-input::placeholder{color:var(--text-muted)}
+.url-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+/* ── Config Row ───────────────────────────────────────────────── */
+.config-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.dir-input{flex:1;min-width:200px;padding:10px 14px;font-size:13px;font-family:var(--mono);
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--bg-input);color:var(--text);outline:none;
+  transition:border-color var(--transition)}
+.dir-input:focus{border-color:var(--accent)}
+/* ── Toggle Switch ────────────────────────────────────────────── */
+.toggle-row{display:flex;align-items:center;gap:12px}
+.switch{position:relative;width:48px;height:28px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;
+  background:var(--border);border-radius:28px;transition:var(--transition)}
+.slider::before{content:'';position:absolute;height:22px;width:22px;left:3px;bottom:3px;
+  background:#fff;border-radius:50%;transition:var(--transition)}
+.switch input:checked+.slider{background:var(--accent)}
+.switch input:checked+.slider::before{transform:translateX(20px)}
+.toggle-label{font-size:14px;font-weight:500}
+/* ── Advanced Settings ────────────────────────────────────────── */
+.advanced-toggle{font-size:13px;color:var(--accent);cursor:pointer;background:none;border:none;
+  padding:4px 0;font-weight:500}
+.advanced-toggle:hover{text-decoration:underline}
+.advanced{display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border)}
+.advanced.open{display:block}
+.advanced .field{margin-bottom:12px}
+.advanced label{display:block;font-size:12px;font-weight:600;color:var(--text-dim);
+  margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em}
+.advanced input,.advanced select{width:100%;padding:8px 12px;font-size:13px;border:1.5px solid var(--border);
+  border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);outline:none}
+.advanced input:focus,.advanced select:focus{border-color:var(--accent)}
+.advanced .hint{font-size:11px;color:var(--text-muted);margin-top:2px}
+.range-row{display:flex;gap:10px;align-items:center}
+.range-row input{flex:1}
+/* ── Buttons ──────────────────────────────────────────────────── */
+.btn{padding:10px 22px;font-size:14px;font-weight:600;border:none;border-radius:var(--radius-sm);
+  cursor:pointer;transition:all var(--transition);font-family:var(--font);
+  display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-hover);transform:translateY(-1px);box-shadow:0 4px 12px rgba(254,44,85,.35)}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-secondary{background:var(--bg-input);color:var(--text);border:1.5px solid var(--border)}
+.btn-secondary:hover{border-color:var(--text-dim)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#e04848;box-shadow:0 4px 12px rgba(255,82,82,.3)}
+.btn-sm{padding:6px 14px;font-size:12px}
+.btn-ghost{background:transparent;color:var(--text-dim);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--bg-input);color:var(--text)}
+/* ── Progress ─────────────────────────────────────────────────── */
+.progress-section{margin-bottom:16px}
+.overall-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{text-align:center;padding:12px 8px}
+.stat .value{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.stat .label{font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px}
+.stat.accent .value{color:var(--accent)}
+.stat.success .value{color:var(--success)}
+.stat.danger .value{color:var(--danger)}
+.progress-bar-wrap{height:6px;background:var(--bg-input);border-radius:6px;overflow:hidden;margin-bottom:6px}
+.progress-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),#ff6b81);
+  border-radius:6px;transition:width .3s ease;width:0%}
+.progress-info{display:flex;justify-content:space-between;font-size:12px;color:var(--text-dim)}
+/* ── Queue ────────────────────────────────────────────────────── */
+.queue-list{max-height:360px;overflow-y:auto;scroll-behavior:smooth}
+.queue-item{display:flex;align-items:center;gap:12px;padding:10px 14px;
+  border-bottom:1px solid var(--border);font-size:13px;transition:background var(--transition)}
+.queue-item:hover{background:var(--bg-input)}
+.queue-item:last-child{border-bottom:none}
+.queue-item .idx{width:36px;font-weight:600;color:var(--text-dim);flex-shrink:0}
+.queue-item .info{flex:1;min-width:0}
+.queue-item .fname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.queue-item .mini-bar{height:3px;background:var(--bg-input);border-radius:3px;margin-top:4px;overflow:hidden}
+.queue-item .mini-fill{height:100%;background:var(--accent);border-radius:3px;transition:width .3s ease}
+.queue-item .status-icon{font-size:16px;flex-shrink:0}
+.status-done{color:var(--success)}
+.status-fail{color:var(--danger)}
+.status-running{color:var(--accent);animation:pulse 1.5s ease infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* ── History ──────────────────────────────────────────────────── */
+.history-list{max-height:260px;overflow-y:auto}
+.history-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;
+  border-bottom:1px solid var(--border);font-size:13px}
+.history-item .fname{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history-item .st{font-size:11px;color:var(--text-dim);margin-right:12px}
+/* ── Empty State ──────────────────────────────────────────────── */
+.empty{padding:40px 20px;text-align:center;color:var(--text-muted)}
+.empty .icon{font-size:40px;margin-bottom:8px}
+.empty p{font-size:14px}
+/* ── Footer ───────────────────────────────────────────────────── */
+footer{text-align:center;font-size:12px;color:var(--text-muted);padding:24px 0 0}
+/* ── Responsive ───────────────────────────────────────────────── */
+@media(max-width:640px){
+  .app{padding:16px 12px 40px}
+  .overall-stats{grid-template-columns:repeat(2,1fr)}
+  .config-row{flex-direction:column}
+  .card{padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header>
+    <h1>&#127916; TikTok Downloader</h1>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="status"><span class="dot" id="ws-dot"></span><span id="ws-text">连接中…</span></div>
+      <button class="theme-btn" id="theme-btn" title="切换主题">&#9788;</button>
+    </div>
+  </header>
+
+  <!-- ── URL Input ────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header">
+      <h2>视频链接</h2>
+      <span class="badge badge-count" id="url-count">0</span>
+    </div>
+    <textarea id="url-input" placeholder="粘贴 TikTok 视频链接，每行一个&#10;例如：https://www.tiktok.com/@user/video/7644479187301993748"></textarea>
+    <div class="url-actions">
+      <button class="btn btn-ghost btn-sm" id="paste-btn">&#128203; 从剪贴板粘贴</button>
+      <button class="btn btn-ghost btn-sm" id="clear-btn">&#10005; 清空</button>
+      <button class="btn btn-ghost btn-sm" id="load-btn">&#128194; 加载 urls.txt</button>
+    </div>
+  </div>
+
+  <!-- ── Settings ─────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header"><h2>下载设置</h2></div>
+    <div class="config-row">
+      <input class="dir-input" id="output-dir" placeholder="下载目录路径…">
+      <button class="btn btn-secondary btn-sm" id="browse-btn">&#128193; 选择文件夹</button>
+    </div>
+    <div style="margin-top:14px">
+      <div class="toggle-row">
+        <label class="switch"><input type="checkbox" id="disguise-toggle" checked><span class="slider"></span></label>
+        <span class="toggle-label">伪装模式</span>
+        <span style="font-size:12px;color:var(--text-dim)">（推荐开启，防 TikTok 风控）</span>
+      </div>
+    </div>
+    <div style="margin-top:14px">
+      <div class="field">
+        <label style="display:block;font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Cookie 来源（限成人内容需登录 TikTok）</label>
+        <select id="cookie-source" style="width:100%;padding:8px 12px;font-size:13px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text);outline:none">
+          <option value="">不使用 Cookie</option>
+          <option value="chrome">Chrome</option>
+          <option value="edge">Edge</option>
+          <option value="brave">Brave</option>
+          <option value="firefox">Firefox</option>
+          <option value="file">cookies.txt 文件</option>
+        </select>
+        <div id="cookie-file-row" style="display:none;margin-top:6px">
+          <input class="dir-input" id="cookie-file" placeholder="cookies.txt 文件路径…">
+          <p class="hint">使用浏览器扩展导出 cookies.txt（如 Get cookies.txt LOCALLY）</p>
+        </div>
+      </div>
+    </div>
+    <button class="advanced-toggle" id="adv-toggle">&#9881; 高级设置 &#9660;</button>
+    <div class="advanced" id="adv-panel">
+      <div class="field">
+        <label>User-Agent</label>
+        <select id="ua-preset">
+          <option value="chrome-win">Chrome 131 — Windows 10</option>
+          <option value="chrome-mac">Chrome 131 — macOS</option>
+          <option value="firefox-win">Firefox 134 — Windows 10</option>
+          <option value="safari">Safari 18 — macOS</option>
+          <option value="custom">自定义…</option>
+        </select>
+        <input type="text" id="ua-custom" placeholder="自定义 User-Agent…" style="display:none;margin-top:6px">
+      </div>
+      <div class="field">
+        <label>请求间隔（秒）</label>
+        <div class="range-row">
+          <span style="font-size:12px;color:var(--text-dim)">最小</span>
+          <input type="number" id="sleep-min" value="1" min="0.5" max="10" step="0.5">
+          <span style="font-size:12px;color:var(--text-dim)">最大</span>
+          <input type="number" id="sleep-max" value="2" min="1" max="15" step="0.5">
+        </div>
+        <p class="hint">每下载一个视频后随机休眠 N~M 秒，数值越大越安全但越慢</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Control ──────────────────────────────────────────────── -->
+  <div class="card" style="display:flex;gap:10px;align-items:center">
+    <button class="btn btn-primary" id="start-btn">&#9654; 开始下载</button>
+    <button class="btn btn-danger" id="cancel-btn" disabled>&#9632; 取消</button>
+    <button class="btn btn-ghost btn-sm" id="open-folder-btn" title="打开下载文件夹">&#128194; 打开文件夹</button>
+    <span id="running-status" style="font-size:13px;color:var(--text-dim);margin-left:auto"></span>
+  </div>
+
+  <!-- ── Progress ─────────────────────────────────────────────── -->
+  <div class="card progress-section">
+    <div class="card-header"><h2>下载进度</h2></div>
+    <div class="overall-stats">
+      <div class="stat" id="stat-total"><div class="value">0</div><div class="label">总计</div></div>
+      <div class="stat success" id="stat-done"><div class="value">0</div><div class="label">已完成</div></div>
+      <div class="stat danger" id="stat-fail"><div class="value">0</div><div class="label">失败</div></div>
+      <div class="stat accent" id="stat-speed"><div class="value">—</div><div class="label">速度</div></div>
+    </div>
+    <div class="progress-bar-wrap"><div class="progress-bar-fill" id="overall-bar"></div></div>
+    <div class="progress-info"><span id="progress-pct">0%</span><span id="progress-eta"></span></div>
+  </div>
+
+  <!-- ── Queue ────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header"><h2>下载队列</h2><span class="badge badge-count" id="queue-count">0</span></div>
+    <div class="queue-list" id="queue-list">
+      <div class="empty"><div class="icon">&#128229;</div><p>粘贴链接后点击开始下载</p></div>
+    </div>
+  </div>
+
+  <!-- ── History ──────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="card-header"><h2>下载记录</h2><span class="badge badge-ok" id="history-count">0</span></div>
+    <div class="history-list" id="history-list">
+      <div class="empty"><div class="icon">&#128196;</div><p>暂无记录</p></div>
+    </div>
+  </div>
+
+  <footer>TikTok Downloader GUI &middot; powered by yt-dlp</footer>
+</div>
+
+<script>
+/* ── Theme ────────────────────────────────────────────────────── */
+const themeBtn = document.getElementById('theme-btn');
+const savedTheme = localStorage.getItem('tiktok-dl-theme') ||
+  (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+document.documentElement.setAttribute('data-theme', savedTheme);
+themeBtn.textContent = savedTheme === 'dark' ? '☀' : '☽';
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  themeBtn.textContent = next === 'dark' ? '☀' : '☽';
+  localStorage.setItem('tiktok-dl-theme', next);
+});
+
+/* ── User-Agent Presets ──────────────────────────────────────── */
+const UA_PRESETS = {
+  'chrome-win': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'chrome-mac': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+  'firefox-win': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0',
+  'safari': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.2 Safari/605.1.15',
+};
+
+// ── DOM refs ──────────────────────────────────────────────────
+const $ = (s) => document.getElementById(s);
+const urlInput = $('url-input');
+const urlCount = $('url-count');
+const outputDir = $('output-dir');
+const disguiseToggle = $('disguise-toggle');
+const advToggle = $('adv-toggle');
+const advPanel = $('adv-panel');
+const uaPreset = $('ua-preset');
+const uaCustom = $('ua-custom');
+const cookieSource = $('cookie-source');
+const cookieFileRow = $('cookie-file-row');
+const cookieFile = $('cookie-file');
+cookieSource.addEventListener('change', () => {
+  cookieFileRow.style.display = cookieSource.value === 'file' ? 'block' : 'none';
+  saveSettings();
+});
+const sleepMin = $('sleep-min');
+const sleepMax = $('sleep-max');
+const startBtn = $('start-btn');
+const cancelBtn = $('cancel-btn');
+const runningStatus = $('running-status');
+const overallBar = $('overall-bar');
+const progressPct = $('progress-pct');
+const progressEta = $('progress-eta');
+const queueList = $('queue-list');
+const queueCount = $('queue-count');
+const historyList = $('history-list');
+const historyCount = $('history-count');
+const wsDot = $('ws-dot');
+const wsText = $('ws-text');
+
+/* ── Advanced Settings Toggle ────────────────────────────────── */
+let advOpen = false;
+advToggle.addEventListener('click', () => { advOpen = !advOpen; advPanel.classList.toggle('open', advOpen); advToggle.innerHTML = advOpen ? '⚙ 收起 &#9650;' : '⚙ 高级设置 &#9660;'; });
+uaPreset.addEventListener('change', () => {
+  uaCustom.style.display = uaPreset.value === 'custom' ? 'block' : 'none';
+  if (uaPreset.value !== 'custom') uaCustom.value = UA_PRESETS[uaPreset.value] || '';
+});
+
+/* ── URL parsing ─────────────────────────────────────────────── */
+function parseUrls(text) {
+  return [...new Set(text.split(/[\n\r]+/).map(l => l.trim()).filter(l => l))];
+}
+function updateUrlCount() {
+  const n = parseUrls(urlInput.value).length;
+  urlCount.textContent = n; urlCount.className = 'badge ' + (n > 0 ? 'badge-count' : '');
+}
+urlInput.addEventListener('input', updateUrlCount);
+
+/* ── Load urls.txt ───────────────────────────────────────────── */
+$('load-btn').addEventListener('click', async () => {
+  try {
+    const resp = await fetch('/api/health'); // use any endpoint to test
+    // Load from server-side or use clipboard
+    const text = await navigator.clipboard.readText();
+    if (text) { urlInput.value = text; updateUrlCount(); }
+  } catch {
+    alert('请手动打开 urls.txt 复制内容后粘贴');
+  }
+});
+
+/* ── Paste ────────────────────────────────────────────────────── */
+$('paste-btn').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) { urlInput.value = text; updateUrlCount(); }
+  } catch { alert('无法读取剪贴板，请手动粘贴'); }
+});
+$('clear-btn').addEventListener('click', () => { urlInput.value = ''; updateUrlCount(); });
+
+/* ── Browse directory ────────────────────────────────────────── */
+$('browse-btn').addEventListener('click', async () => {
+  try {
+    const dirHandle = await window.showDirectoryPicker();
+    // For web, just use the handle name; fall back to manual input
+    outputDir.value = dirHandle.name;
+  } catch {
+    // Fallback: prompt
+    const p = prompt('输入下载目录路径（例如 F:\\videos）');
+    if (p) outputDir.value = p;
+  }
+});
+
+/* ── Persist settings ────────────────────────────────────────── */
+function saveSettings() {
+  localStorage.setItem('tiktok-dl-settings', JSON.stringify({
+    outputDir: outputDir.value, disguise: disguiseToggle.checked,
+    cookieSource: cookieSource.value, cookieFile: cookieFile.value,
+    uaPreset: uaPreset.value, uaCustom: uaCustom.value,
+    sleepMin: sleepMin.value, sleepMax: sleepMax.value,
+  }));
+}
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem('tiktok-dl-settings'));
+    if (!s) return;
+    outputDir.value = s.outputDir || '';
+    disguiseToggle.checked = s.disguise !== false;
+    cookieSource.value = s.cookieSource || '';
+    cookieFile.value = s.cookieFile || '';
+    if (cookieSource.value === 'file') cookieFileRow.style.display = 'block';
+    uaPreset.value = s.uaPreset || 'chrome-win';
+    uaCustom.value = s.uaCustom || '';
+    sleepMin.value = s.sleepMin || '1';
+    sleepMax.value = s.sleepMax || '2';
+    if (uaPreset.value === 'custom') uaCustom.style.display = 'block';
+  } catch {}
+}
+loadSettings();
+[outputDir, disguiseToggle, cookieSource, cookieFile, uaPreset, uaCustom, sleepMin, sleepMax].forEach(el =>
+  el.addEventListener('change', saveSettings));
+outputDir.addEventListener('input', saveSettings);
+
+/* ── WebSocket ───────────────────────────────────────────────── */
+let ws = null;
+let queueData = [];
+let downloadRunning = false;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => { wsDot.className = 'dot connected'; wsText.textContent = '已连接'; };
+  ws.onclose = () => { wsDot.className = 'dot'; wsText.textContent = '断开，重连中…'; setTimeout(connect, 2000); };
+  ws.onerror = () => { wsDot.className = 'dot'; wsText.textContent = '连接失败'; };
+  ws.onmessage = (e) => handleMessage(JSON.parse(e.data));
+}
+
+function send(msg) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg)); }
+
+/* ── Message Handler ──────────────────────────────────────────── */
+function handleMessage(msg) {
+  switch (msg.type) {
+    case 'info': break;
+
+    case 'started': {
+      downloadRunning = true;
+      startBtn.disabled = true; cancelBtn.disabled = false;
+      overallBar.style.width = '0%'; progressPct.textContent = '0%'; progressEta.textContent = '';
+      document.getElementById('stat-total').querySelector('.value').textContent = msg.totalVideos;
+      document.getElementById('stat-done').querySelector('.value').textContent = '0';
+      document.getElementById('stat-fail').querySelector('.value').textContent = '0';
+      document.getElementById('stat-speed').querySelector('.value').textContent = '—';
+      // Initialize queue
+      queueData = Array.from({length: msg.totalVideos}, (_, i) => ({ index: i + 1, status: 'waiting', filename: '', percent: 0 }));
+      renderQueue();
+      historyList.innerHTML = '';
+      historyCount.textContent = '0';
+      break;
+    }
+
+    case 'processing': {
+      const q = queueData[msg.index - 1];
+      if (q) { q.status = 'running'; q.filename = msg.filename; q.percent = 0; }
+      renderQueue();
+      runningStatus.textContent = `正在下载: ${msg.filename}`;
+      break;
+    }
+
+    case 'progress': {
+      const q = queueData[msg.index - 1];
+      if (q) {
+        q.percent = parseFloat(msg.percent) || 0;
+        // Update mini bar in place
+        const el = document.querySelector(`.queue-item[data-idx="${msg.index}"] .mini-fill`);
+        if (el) el.style.width = q.percent + '%';
+      }
+      // Overall progress
+      const totalDone = queueData.filter(d => d.status === 'done').length;
+      const overallPct = ((totalDone + (queueData[msg.index - 1]?.percent || 0) / 100) / queueData.length * 100).toFixed(1);
+      overallBar.style.width = overallPct + '%';
+      progressPct.textContent = overallPct + '%';
+      if (msg.eta && msg.eta !== 'NA') progressEta.textContent = '剩余 ' + msg.eta;
+      document.getElementById('stat-speed').querySelector('.value').textContent = msg.speed || '—';
+      break;
+    }
+
+    case 'completed': {
+      const q = queueData[msg.index - 1];
+      if (q) { q.status = 'done'; q.filename = msg.filename; q.percent = 100; }
+      document.getElementById('stat-done').querySelector('.value').textContent = msg.completed;
+      document.getElementById('stat-fail').querySelector('.value').textContent = msg.failed;
+      addHistory(msg.filename, true);
+      renderQueue();
+      break;
+    }
+
+    case 'error': {
+      // Fatal errors (e.g., yt-dlp not found)
+      addHistory(msg.message || '下载错误', false);
+      renderQueue();
+      runningStatus.textContent = '错误: ' + (msg.message || '').substring(0, 80);
+      break;
+    }
+
+    case 'video_error': {
+      // Video-level error (extraction failure, etc.)
+      if (msg.index && queueData[msg.index - 1]) {
+        queueData[msg.index - 1].status = 'failed';
+        queueData[msg.index - 1].error = msg.message;
+      }
+      const failCount = msg.fatal ? (parseInt(document.getElementById('stat-fail').querySelector('.value').textContent) + 1) : 1;
+      document.getElementById('stat-fail').querySelector('.value').textContent = failCount;
+      addHistory(msg.url || msg.message, false);
+      renderQueue();
+      if (msg.fatal) {
+        // Check if it's an auth error
+        const isAuthError = (msg.message || '').includes('Log in for access') || (msg.message || '').includes('comfortable for some audiences');
+        runningStatus.innerHTML = isAuthError
+          ? '⚠️ TikTok 需要登录 — 请在设置中选择 Cookie 来源（Chrome/Edge/cookies.txt）'
+          : '致命错误: ' + (msg.message || '').substring(0, 80);
+      }
+      break;
+    }
+
+    case 'log': {
+      // Non-fatal warnings
+      console.log('[yt-dlp ' + msg.level + ']', msg.message);
+      break;
+    }
+
+    case 'batch_done': {
+      downloadRunning = false;
+      startBtn.disabled = false; cancelBtn.disabled = true;
+      if (msg.cancelled) {
+        runningStatus.textContent = '已取消';
+      } else if (msg.fatalError) {
+        const isAuth = msg.fatalError.includes('Log in for access') || msg.fatalError.includes('comfortable');
+        runningStatus.innerHTML = isAuth
+          ? '⚠️ 需要 TikTok 登录 — 请在设置中选择 Cookie 来源后重试'
+          : '错误: ' + msg.fatalError.substring(0, 100);
+      } else {
+        runningStatus.innerHTML = `✅ 完成！成功 <b>${msg.succeeded}</b>，失败 ${msg.failed}`;
+      }
+      if (!msg.cancelled && msg.succeeded > 0) overallBar.style.width = '100%';
+      document.getElementById('stat-done').querySelector('.value').textContent = msg.succeeded;
+      document.getElementById('stat-fail').querySelector('.value').textContent = msg.failed;
+      if (msg.results) {
+        for (const r of msg.results) {
+          const q = queueData[r.index - 1];
+          if (q) { q.status = r.status; q.filename = r.filename || ''; q.error = r.message || ''; }
+        }
+      }
+      renderQueue();
+      break;
+    }
+
+    case 'cancelled': {
+      downloadRunning = false;
+      startBtn.disabled = false; cancelBtn.disabled = true;
+      runningStatus.textContent = '已取消';
+      break;
+    }
+  }
+}
+
+/* ── Queue Rendering ──────────────────────────────────────────── */
+function renderQueue() {
+  queueCount.textContent = queueData.length;
+  const fragment = document.createDocumentFragment();
+  for (const q of queueData) {
+    const el = document.createElement('div');
+    el.className = 'queue-item'; el.setAttribute('data-idx', q.index);
+    let icon = '⭕'; let cls = '';
+    if (q.status === 'done') { icon = '✅'; cls = 'status-done'; }
+    else if (q.status === 'failed') { icon = '❌'; cls = 'status-fail'; }
+    else if (q.status === 'running') { icon = '▶'; cls = 'status-running'; }
+    el.innerHTML = `
+      <span class="idx">#${q.index}</span>
+      <div class="info">
+        <div class="fname">${q.status === 'waiting' ? '等待中…' : (q.filename || '—')}</div>
+        <div class="mini-bar"><div class="mini-fill" style="width:${q.percent}%"></div></div>
+      </div>
+      <span class="status-icon ${cls}">${icon}</span>`;
+    fragment.appendChild(el);
+  }
+  queueList.innerHTML = '';
+  queueList.appendChild(fragment);
+  // Auto-scroll to current item
+  setTimeout(() => {
+    const running = queueList.querySelector('.status-running');
+    if (running) running.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 100);
+}
+
+/* ── History ──────────────────────────────────────────────────── */
+function addHistory(name, ok) {
+  const el = document.createElement('div');
+  el.className = 'history-item';
+  el.innerHTML = `<span class="fname">${name || '—'}</span><span class="st" style="color:${ok?'var(--success)':'var(--danger)'}">${ok?'✅ 成功':'❌ 失败'}</span><span class="st">${new Date().toLocaleTimeString()}</span>`;
+  if (historyList.querySelector('.empty')) historyList.innerHTML = '';
+  historyList.prepend(el);
+  historyCount.textContent = historyList.querySelectorAll('.history-item').length;
+}
+
+/* ── Open Folder ──────────────────────────────────────────────── */
+document.getElementById('open-folder-btn').addEventListener('click', () => {
+  const dir = outputDir.value || 'F:\\ceshi\\xiazaiship\\downloads';
+  if (window.__TAURI__) {
+    window.__TAURI__.shell.open(dir);
+  } else {
+    navigator.clipboard.writeText(dir).then(() => {
+      alert('下载目录路径已复制到剪贴板：\n' + dir);
+    }).catch(() => {
+      alert('下载目录：\n' + dir);
+    });
+  }
+});
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+startBtn.addEventListener('click', () => {
+  const urls = parseUrls(urlInput.value);
+  if (urls.length === 0) return alert('请先粘贴视频链接');
+  const ua = uaPreset.value === 'custom' ? uaCustom.value : UA_PRESETS[uaPreset.value];
+  send({ type: 'start', urls, outputDir: outputDir.value || undefined,
+    disguise: disguiseToggle.checked, userAgent: ua,
+    cookiesFromBrowser: cookieSource.value === 'file' ? '' : cookieSource.value,
+    cookiesFile: cookieSource.value === 'file' ? cookieFile.value : '',
+    sleepMin: parseFloat(sleepMin.value) || 1, sleepMax: parseFloat(sleepMax.value) || 2 });
+});
+
+cancelBtn.addEventListener('click', () => send({ type: 'cancel' }));
+
+/* ── Keyboard shortcut ────────────────────────────────────────── */
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.key === 'Enter' && !downloadRunning) startBtn.click();
+  if (e.ctrlKey && e.key === 'Escape' && downloadRunning) cancelBtn.click();
+});
+
+/* ── Init ─────────────────────────────────────────────────────── */
+connect();
+updateUrlCount();
+</script>
+</body>
+</html>
