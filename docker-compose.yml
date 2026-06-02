@@ -11,6 +11,8 @@ services:
       - tiktok_downloads:/app/downloads
       # 可选：挂载本地 urls.txt 方便编辑
       - ./urls.txt:/app/urls.txt:ro
+      # 挂载 cookies.txt（TikTok 登录认证）
+      - ./cookies.txt:/app/cookies.txt:ro
     environment:
       - PORT=${PORT:-3456}
     restart: unless-stopped
