@@ -8,6 +8,19 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare cookies (strip newlines)
+        id: cookies
+        run: |
+          RAW="${{ secrets.COOKIES_BASE64 }}"
+          if [ -z "$RAW" ]; then
+            echo "::warning::COOKIES_BASE64 secret is empty or not configured"
+            echo "value=" >> $GITHUB_OUTPUT
+          else
+            CLEAN=$(echo "$RAW" | tr -d '\n\r' | tr -d ' ')
+            echo "value=${CLEAN}" >> $GITHUB_OUTPUT
+            echo "Cookies base64 prepared (length=${#CLEAN})"
+          fi
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
@@ -15,15 +28,15 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           env: |
-            COOKIES_BASE64=${{ secrets.COOKIES_BASE64 }}
+            COOKIES_BASE64=${{ steps.cookies.outputs.value }}
           script: |
             set -e
 
-            # Debug: check if cookies secret is available
+            # Debug
             if [ -n "$COOKIES_BASE64" ]; then
-              echo "[debug] COOKIES_BASE64 is set (length=${#COOKIES_BASE64})"
+              echo "[debug] COOKIES_BASE64 length=${#COOKIES_BASE64}"
             else
-              echo "[debug] COOKIES_BASE64 is EMPTY - cookies will NOT be written"
+              echo "[debug] COOKIES_BASE64 EMPTY - cookies skipped"
             fi
 
             # Install Docker if not present
@@ -55,9 +68,8 @@ jobs:
               echo "PORT=3456" > $APP_DIR/.env
             fi
 
-            # Write cookies.txt from GitHub Secret (if configured)
+            # Write cookies.txt from GitHub Secret
             if [ -n "$COOKIES_BASE64" ]; then
-              # Remove any previous directory mount placeholder
               rm -rf $APP_DIR/cookies.txt
               echo "$COOKIES_BASE64" | base64 -d > $APP_DIR/cookies.txt
               echo "cookies.txt written ($(wc -c < $APP_DIR/cookies.txt) bytes)"
