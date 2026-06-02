@@ -11,7 +11,10 @@ const YTDLP = process.platform === 'win32'
   ? path.join(__dirname, 'yt-dlp.exe')
   : 'yt-dlp'; // Linux: use system yt-dlp from PATH
 const PUBLIC_DIR = path.join(__dirname, 'public');
-const DEFAULT_OUTPUT = path.join(__dirname, process.platform === 'win32' ? 'downloads' : '/app/downloads');
+const DEFAULT_OUTPUT = process.platform === 'win32'
+  ? path.join(__dirname, 'downloads')
+  : '/app/downloads';
+const TMP_DIR = process.platform === 'win32' ? __dirname : '/tmp';
 
 // ── Express ─────────────────────────────────────────────────────────
 const app = express();
@@ -116,8 +119,8 @@ wss.on('connection', (ws) => {
       fs.mkdirSync(outputDir, { recursive: true });
     }
 
-    // Write URLs to temp file
-    tempFile = path.join(__dirname, `.temp_urls_${Date.now()}.txt`);
+    // Write URLs to temp file (use /tmp on Linux because read_only fs)
+    tempFile = path.join(TMP_DIR, `.temp_urls_${Date.now()}.txt`);
     fs.writeFileSync(tempFile, urls.join('\n'), 'utf-8');
 
     // Build yt-dlp arguments
