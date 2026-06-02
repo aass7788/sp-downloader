@@ -19,6 +19,13 @@ jobs:
           script: |
             set -e
 
+            # Debug: check if cookies secret is available
+            if [ -n "$COOKIES_BASE64" ]; then
+              echo "[debug] COOKIES_BASE64 is set (length=${#COOKIES_BASE64})"
+            else
+              echo "[debug] COOKIES_BASE64 is EMPTY - cookies will NOT be written"
+            fi
+
             # Install Docker if not present
             if ! command -v docker &> /dev/null; then
               echo "Installing Docker..."
@@ -50,8 +57,12 @@ jobs:
 
             # Write cookies.txt from GitHub Secret (if configured)
             if [ -n "$COOKIES_BASE64" ]; then
+              # Remove any previous directory mount placeholder
+              rm -rf $APP_DIR/cookies.txt
               echo "$COOKIES_BASE64" | base64 -d > $APP_DIR/cookies.txt
               echo "cookies.txt written ($(wc -c < $APP_DIR/cookies.txt) bytes)"
+            else
+              echo "[warn] No cookies secret, skipping cookies.txt"
             fi
 
             # Build and restart
