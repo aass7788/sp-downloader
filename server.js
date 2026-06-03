@@ -141,11 +141,14 @@ wss.on('connection', (ws) => {
       '-o', path.join(outputDir, '%(title).100s [%(id)s].%(ext)s'),
     ];
 
+    // Helper: check path is a real file (not a directory — Docker creates dirs for missing mounts)
+    const isFile = (p) => { try { return fs.statSync(p).isFile(); } catch { return false; } };
+
     // Cookies: prefer --cookies-from-browser, fall back to --cookies file, auto-detect /app/cookies.txt
-    const effectiveCookiesFile = cookiesFile || (fs.existsSync('/app/cookies.txt') ? '/app/cookies.txt' : '');
+    const effectiveCookiesFile = cookiesFile || (isFile('/app/cookies.txt') ? '/app/cookies.txt' : '');
     if (cookiesFromBrowser) {
       args.push('--cookies-from-browser', cookiesFromBrowser);
-    } else if (effectiveCookiesFile && fs.existsSync(effectiveCookiesFile)) {
+    } else if (effectiveCookiesFile && isFile(effectiveCookiesFile)) {
       args.push('--cookies', effectiveCookiesFile);
     }
 
