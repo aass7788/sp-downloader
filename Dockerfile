@@ -1,9 +1,10 @@
 # Node.js + yt-dlp 下载服务
 FROM node:22-alpine
 
-# 安装 Python 和 yt-dlp（node 用户 uid=1000 已存在，直接复用）
-RUN apk add --no-cache python3 py3-pip ffmpeg tini && \
-    pip3 install --no-cache-dir --break-system-packages yt-dlp
+# 安装 Python、yt-dlp、curl_cffi（浏览器指纹伪装，TikTok 必需）
+RUN apk add --no-cache python3 py3-pip ffmpeg tini rust cargo gcc musl-dev python3-dev && \
+    pip3 install --no-cache-dir --break-system-packages yt-dlp curl-cffi && \
+    apk del rust cargo gcc musl-dev python3-dev
 
 WORKDIR /app
 

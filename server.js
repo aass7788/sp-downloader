@@ -135,6 +135,7 @@ wss.on('connection', (ws) => {
     const args = [
       '--no-playlist',
       '--newline',
+      '--impersonate', 'chrome',       // 浏览器指纹伪装，绕过 TikTok 反爬
       '--progress-template',
       'PROGRESS:%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.elapsed)s',
       '--progress-delta', '1',
