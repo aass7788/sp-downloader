@@ -16,54 +16,43 @@ from urllib.parse import urlencode
 import httpx
 
 
-# 尝试从 parse.py 导入配置，失败则使用本地副本 (Vercel 环境兼容)
-try:
-    from api.parse import (
-        TIKTOK_API_ENDPOINTS,
-        DOUYIN_API_ENDPOINT,
-        FEED_PATH,
-        TIKTOK_DEVICE_PARAMS,
-        DOUYIN_DEVICE_PARAMS,
-        TIKTOK_HEADERS,
-        DOUYIN_HEADERS,
-    )
-except ImportError:
-    TIKTOK_API_ENDPOINTS = [
-        "https://api22-normal-c-alisg.tiktokv.com",
-        "https://api22-normal-c-useast1a.tiktokv.com",
-    ]
-    DOUYIN_API_ENDPOINT = "https://aweme.snssdk.com"
-    FEED_PATH = "/aweme/v1/feed/"
-    TIKTOK_DEVICE_PARAMS = {
-        "iid": 7318518857994389254,
-        "device_id": 7318517321748022790,
-        "channel": "googleplay",
-        "app_name": "musical_ly",
-        "version_code": "300904",
-        "device_platform": "android",
-        "device_type": "SM-ASUS_Z01QD",
-        "os_version": "9",
-    }
-    DOUYIN_DEVICE_PARAMS = {
-        "iid": 7318518857994389254,
-        "device_id": 7318517321748022790,
-        "channel": "tencent",
-        "app_name": "aweme",
-        "version_code": "300904",
-        "device_platform": "android",
-        "device_type": "SM-ASUS_Z01QD",
-        "os_version": "9",
-    }
-    TIKTOK_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "Referer": "https://www.tiktok.com/",
-        "Cookie": "CykaBlyat=XD",
-    }
-    DOUYIN_HEADERS = {
-        "User-Agent": "Mozilla/5.0 (Linux; Android 9; SM-ASUS_Z01QD) AppleWebKit/537.36",
-        "Referer": "https://www.douyin.com/",
-        "Cookie": "CykaBlyat=XD",
-    }
+# 独立配置 (不依赖 parse.py，避免 Vercel 跨文件构建问题)
+TIKTOK_API_ENDPOINTS = [
+    "https://api22-normal-c-alisg.tiktokv.com",
+    "https://api22-normal-c-useast1a.tiktokv.com",
+]
+DOUYIN_API_ENDPOINT = "https://aweme.snssdk.com"
+FEED_PATH = "/aweme/v1/feed/"
+TIKTOK_DEVICE_PARAMS = {
+    "iid": 7318518857994389254,
+    "device_id": 7318517321748022790,
+    "channel": "googleplay",
+    "app_name": "musical_ly",
+    "version_code": "300904",
+    "device_platform": "android",
+    "device_type": "SM-ASUS_Z01QD",
+    "os_version": "9",
+}
+DOUYIN_DEVICE_PARAMS = {
+    "iid": 7318518857994389254,
+    "device_id": 7318517321748022790,
+    "channel": "tencent",
+    "app_name": "aweme",
+    "version_code": "300904",
+    "device_platform": "android",
+    "device_type": "SM-ASUS_Z01QD",
+    "os_version": "9",
+}
+TIKTOK_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Referer": "https://www.tiktok.com/",
+    "Cookie": "CykaBlyat=XD",
+}
+DOUYIN_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Linux; Android 9; SM-ASUS_Z01QD) AppleWebKit/537.36",
+    "Referer": "https://www.douyin.com/",
+    "Cookie": "CykaBlyat=XD",
+}
 
 
 def _check_api(endpoint, device_params, headers, timeout=10):
